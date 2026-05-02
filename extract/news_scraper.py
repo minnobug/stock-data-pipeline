@@ -105,13 +105,9 @@ def scrape_vneconomy() -> pd.DataFrame:
                 parse_pubdate(pubdate_tag.text) if pubdate_tag else datetime.now()
             )
 
-            # description là tóm tắt bài viết (có thể chứa HTML tags)
+            # description của VnEconomy là plain text, không cần parse HTML
             desc_tag = item.find("description")
-            summary = (
-                BeautifulSoup(desc_tag.text, "html.parser").get_text(strip=True)
-                if desc_tag
-                else ""
-            )
+            summary = desc_tag.get_text(strip=True) if desc_tag else ""
 
             articles.append(
                 {
