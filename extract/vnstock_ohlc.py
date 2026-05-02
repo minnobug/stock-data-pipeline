@@ -2,7 +2,7 @@
 extract/vnstock_ohlc.py
 
 MỤC ĐÍCH:
-    Lấy dữ liệu giá cổ phiếu hàng ngày (OHLC) từ vnstock.
+    Lấy dữ liệu giá cổ phiếu hàng ngày (OHLC) từ vnstock 4.x.
 
     OHLC là viết tắt của:
         O - Open  : giá mở cửa
@@ -21,11 +21,15 @@ DATA TRẢ VỀ:
     - volume    : khối lượng giao dịch
 
 TẦN SUẤT CHẠY:
-    Mỗi ngày sau khi thị trường đóng cửa (khoảng 15:30 mỗi ngày).
+    Mỗi ngày sau khi thị trường đóng cửa (khoảng 15:30).
+
+LƯU Ý vnstock 4.x:
+    Dùng vnstock.api.quote.Quote thay vì Vnstock().stock()
+    Cột thời gian là 'time', không phải 'date' hay 'trade_date'
 """
 
 import pandas as pd
-from vnstock import Vnstock
+from vnstock.api.quote import Quote
 
 
 def extract_ohlc(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
@@ -43,23 +47,17 @@ def extract_ohlc(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     Ví dụ:
         df = extract_ohlc('VNM', '2024-01-01', '2024-12-31')
     """
-    # Khởi tạo vnstock với mã cổ phiếu cần lấy
-    # source='VCI' là nguồn dữ liệu ổn định nhất hiện tại
-    stock = Vnstock().stock(symbol=ticker, source="VCI")
+    # Khởi tạo Quote API của vnstock 4.x
+    q = Quote(symbol=ticker, source="VCI")
 
-    # Lấy lịch sử giá theo ngày (interval='1D')
-    # Kết quả trả về DataFrame gồm: time, open, high, low, close, volume
-    df = stock.quote.history(
-        start=start_date,
-        end=end_date,
-        interval="1D",  # 1D = mỗi ngày, có thể dùng '1W' tuần, '1M' tháng
-    )
+    # Lấy lịch sử giá theo ngày
+    # interval='1D' = mỗi ngày
+    df = q.history(start=start_date, end=end_date, interval="1D")
 
-    # Đổi tên cột 'time' thành 'trade_date' cho rõ ràng
+    # Đổi tên cột 'time' thành 'trade_date' cho nhất quán với schema
     df = df.rename(columns={"time": "trade_date"})
 
-    # Thêm cột ticker để biết data này thuộc mã nào
-    # (vnstock không tự thêm cột ticker vào kết quả)
+    # Thêm cột ticker vì vnstock không tự thêm
     df["ticker"] = ticker
 
     # Chỉ giữ các cột cần thiết, đúng thứ tự
@@ -70,7 +68,7 @@ def extract_ohlc(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
 
 def extract_all_ohlc(tickers: list, start_date: str, end_date: str) -> pd.DataFrame:
     """
-    Lấy OHLC cho danh sách nhiều mã cổ phiếu, gộp thành 1 DataFrame.
+    Lấy OHLC cho danh sách nhiều mã cổ phiếu.
 
     Args:
         tickers   : danh sách mã cổ phiếu, VD: ['VNM', 'VIC', 'HPG']
@@ -80,7 +78,7 @@ def extract_all_ohlc(tickers: list, start_date: str, end_date: str) -> pd.DataFr
     Returns:
         DataFrame chứa OHLC của tất cả mã
     """
-    all_data = []  # List để gom kết quả từng mã
+    all_data = []
 
     for ticker in tickers:
         try:
@@ -97,7 +95,6 @@ def extract_all_ohlc(tickers: list, start_date: str, end_date: str) -> pd.DataFr
         print("[ohlc] Không lấy được data nào!")
         return pd.DataFrame()
 
-    # Gộp tất cả DataFrame lại thành 1
     result = pd.concat(all_data, ignore_index=True)
     print(f"[ohlc] Tổng: {len(result)} dòng từ {len(all_data)} mã")
     return result
