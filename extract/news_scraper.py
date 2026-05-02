@@ -2,39 +2,35 @@
 extract/news_scraper.py
 
 MỤC ĐÍCH:
-    Scrape tin tức tài chính từ CafeF — trang tin tức chứng khoán
-    lớn nhất Việt Nam.
+    Lấy tin tức tài chính và chứng khoán từ VnEconomy RSS feed.
 
-    "Scraping" là kỹ thuật đọc nội dung HTML của trang web
-    rồi trích xuất thông tin cần thiết bằng code.
-    Khác với API (có endpoint rõ ràng), scraping phải
-    tự tìm đúng thẻ HTML chứa data.
+    Tại sao dùng RSS thay vì scraping HTML?
+    - CafeF dùng JavaScript để load tin tức (dynamic rendering)
+      nên BeautifulSoup không đọc được nội dung thật.
+    - RSS là định dạng XML tĩnh, trả về data ngay không cần JS.
+    - VnEconomy cung cấp RSS chứng khoán ổn định và miễn phí.
 
 DATA TRẢ VỀ:
     - title       : tiêu đề bài viết
     - url         : đường link bài viết
-    - source      : nguồn (CafeF)
+    - source      : nguồn (VnEconomy)
     - published_at: thời gian đăng
     - summary     : tóm tắt nội dung
 
 TẦN SUẤT CHẠY:
-    Mỗi ngày — lấy tin tức mới nhất về thị trường.
-
-LƯU Ý:
-    Scraping phụ thuộc vào cấu trúc HTML của trang web.
-    Nếu CafeF thay đổi giao diện, code có thể cần cập nhật.
+    Mỗi ngày — lấy tin tức mới nhất về thị trường chứng khoán.
 """
 
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 
-# URL danh mục chứng khoán của CafeF
-CAFEF_URL = "https://cafef.vn/thi-truong-chung-khoan.chn"
+# RSS feed chứng khoán của VnEconomy
+VNECONOMY_RSS = "https://vneconomy.vn/chung-khoan.rss"
 
-# Header để giả lập browser — một số trang chặn request không có header
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -44,106 +40,104 @@ HEADERS = {
 }
 
 
-def scrape_cafef(pages: int = 3) -> pd.DataFrame:
+def parse_pubdate(pubdate_str: str) -> datetime:
     """
-    Scrape tin tức chứng khoán từ CafeF.
+    Parse chuỗi ngày tháng từ RSS sang datetime.
+
+    RSS dùng định dạng RFC 2822, VD:
+        'Fri, 02 May 2025 10:30:00 +0700'
 
     Args:
-        pages: số trang cần scrape (mỗi trang ~20 bài)
+        pubdate_str: chuỗi ngày tháng từ RSS
+
+    Returns:
+        datetime object, hoặc datetime.now() nếu parse thất bại
+    """
+    try:
+        return parsedate_to_datetime(pubdate_str)
+    except Exception:
+        return datetime.now()
+
+
+def scrape_vneconomy() -> pd.DataFrame:
+    """
+    Lấy tin tức chứng khoán từ VnEconomy RSS feed.
+
+    Cách hoạt động:
+        1. Gửi GET request đến URL RSS
+        2. Parse XML bằng BeautifulSoup với parser 'xml'
+        3. Tìm tất cả thẻ <item> — mỗi item là 1 bài viết
+        4. Trích xuất title, link, pubDate, description
+        5. Trả về DataFrame
 
     Returns:
         DataFrame với các cột: title, url, source, published_at, summary
-
-    Cách hoạt động:
-        1. Gửi HTTP GET request đến CafeF
-        2. Đọc HTML trả về bằng BeautifulSoup
-        3. Tìm các thẻ chứa tin tức (thẻ <a>, <h3>, <p>...)
-        4. Trích xuất title, url, summary từ các thẻ đó
-        5. Trả về DataFrame
     """
-    all_articles = []
+    try:
+        response = requests.get(VNECONOMY_RSS, headers=HEADERS, timeout=10)
+        response.raise_for_status()
 
-    for page in range(1, pages + 1):
-        # Tạo URL cho từng trang
-        # CafeF dùng query param ?page=N để phân trang
-        url = f"{CAFEF_URL}?page={page}"
-
-        try:
-            # Gửi request đến CafeF, timeout=10 giây
-            response = requests.get(url, headers=HEADERS, timeout=10)
-
-            # Kiểm tra request có thành công không (status 200 = OK)
-            response.raise_for_status()
-
-            # Parse HTML bằng BeautifulSoup
-            # 'html.parser' là parser mặc định của Python, không cần cài thêm
-            soup = BeautifulSoup(response.text, "html.parser")
-
-            # Tìm tất cả block tin tức trên trang
-            # Cần inspect HTML của CafeF để tìm đúng class
-            # Đây là class phổ biến của CafeF — có thể cần điều chỉnh
-            articles = soup.find_all("div", class_="item")
-
-            for article in articles:
-                try:
-                    # Lấy tiêu đề và link từ thẻ <a> trong <h3>
-                    title_tag = article.find("h3")
-                    if not title_tag:
-                        continue
-
-                    link_tag = title_tag.find("a")
-                    if not link_tag:
-                        continue
-
-                    title = link_tag.get_text(strip=True)
-                    article_url = link_tag.get("href", "")
-
-                    # Nếu URL là relative (không có http) thì thêm domain vào
-                    if article_url.startswith("/"):
-                        article_url = f"https://cafef.vn{article_url}"
-
-                    # Lấy tóm tắt từ thẻ <p> hoặc <div class="sapo">
-                    summary_tag = article.find("p") or article.find(
-                        "div", class_="sapo"
-                    )
-                    summary = summary_tag.get_text(strip=True) if summary_tag else ""
-
-                    all_articles.append(
-                        {
-                            "title": title,
-                            "url": article_url,
-                            "source": "CafeF",
-                            "published_at": datetime.now(),  # CafeF không luôn có timestamp rõ
-                            "summary": summary,
-                        }
-                    )
-
-                except Exception as e:
-                    # Bỏ qua bài lỗi, tiếp tục bài tiếp theo
-                    print(f"[news] Lỗi parse bài: {e}")
-                    continue
-
-            print(f"[news] Trang {page}: lấy được {len(articles)} bài")
-
-        except requests.RequestException as e:
-            print(f"[news] Lỗi request trang {page}: {e}")
-            continue
-
-    if not all_articles:
-        print("[news] Không lấy được tin tức nào!")
+    except requests.RequestException as e:
+        print(f"[news] Lỗi request: {e}")
         return pd.DataFrame()
 
-    df = pd.DataFrame(all_articles)
+    # Parse XML bằng lxml (cần pip install lxml)
+    soup = BeautifulSoup(response.text, "xml")
+
+    # Mỗi <item> trong RSS là 1 bài viết
+    items = soup.find_all("item")
+
+    if not items:
+        print("[news] Không tìm thấy bài viết nào trong RSS!")
+        return pd.DataFrame()
+
+    articles = []
+    for item in items:
+        try:
+            title = (
+                item.find("title").get_text(strip=True) if item.find("title") else ""
+            )
+            url = item.find("link").get_text(strip=True) if item.find("link") else ""
+
+            # pubDate là thời gian đăng bài theo định dạng RFC 2822
+            pubdate_tag = item.find("pubDate")
+            published_at = (
+                parse_pubdate(pubdate_tag.text) if pubdate_tag else datetime.now()
+            )
+
+            # description là tóm tắt bài viết (có thể chứa HTML tags)
+            desc_tag = item.find("description")
+            summary = (
+                BeautifulSoup(desc_tag.text, "html.parser").get_text(strip=True)
+                if desc_tag
+                else ""
+            )
+
+            articles.append(
+                {
+                    "title": title,
+                    "url": url,
+                    "source": "VnEconomy",
+                    "published_at": published_at,
+                    "summary": summary,
+                }
+            )
+
+        except Exception as e:
+            print(f"[news] Lỗi parse item: {e}")
+            continue
+
+    df = pd.DataFrame(articles)
 
     # Xóa các bài trùng URL
     df = df.drop_duplicates(subset="url")
 
-    print(f"[news] Tổng: {len(df)} bài sau khi lọc trùng")
+    print(f"[news] Lấy được {len(df)} bài từ VnEconomy")
     return df
 
 
 if __name__ == "__main__":
-    df = scrape_cafef(pages=2)
-    print(df.head(5))
+    df = scrape_vneconomy()
+    print(df[["title", "published_at", "source"]].head(10))
     print(f"\nCác cột: {df.columns.tolist()}")
     print(f"Tổng số dòng: {len(df)}")
