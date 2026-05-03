@@ -9,7 +9,7 @@ DATA TRẢ VỀ:
     - ticker     : mã cổ phiếu (VD: VNM, VIC, HPG)
     - name       : tên công ty
     - exchange   : sàn giao dịch (HOSE hoặc HNX)
-    - type       : loại (stock, etf, ...)
+    - industry   : loại (stock, etf, ...)
     - is_delisted: có bị hủy niêm yết không
 
 TẦN SUẤT CHẠY:
@@ -36,6 +36,9 @@ def extract_all_companies() -> pd.DataFrame:
     # Lấy toàn bộ danh sách — vnstock 4.x không filter theo sàn
     df = listing.symbols_by_exchange(exchange="HOSE")
 
+    # In cột thực tế để debug nếu cần
+    print(f"[companies] Cột nhận được: {df.columns.tolist()}")
+
     # Đổi tên cột cho nhất quán với schema PostgreSQL
     df = df.rename(
         columns={
@@ -47,6 +50,11 @@ def extract_all_companies() -> pd.DataFrame:
 
     # Chỉ giữ HOSE và HNX, bỏ UPCOM, XHNF, NaN
     df = df[df["exchange"].isin(["HOSE", "HNX"])].copy()
+
+    # Thêm cột industry nếu không có (trường hợp API timeout trả về thiếu cột)
+    if "industry" not in df.columns:
+        print("[companies] Cảnh báo: không có cột 'industry', dùng giá trị mặc định.")
+        df["industry"] = "unknown"
 
     # Chỉ giữ các cột cần thiết
     df = df[["ticker", "name", "exchange", "industry"]]
