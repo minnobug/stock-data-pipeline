@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: dim_companies
+    description: "Dimension bảng công ty niêm yết trên HOSE và HNX"
+    columns:
+      - name: company_id
+        description: "Mã cổ phiếu, primary key"
+        tests:
+          - unique
+          - not_null
+      - name: exchange
+        description: "Sàn giao dịch"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['HOSE', 'HNX']
+
+  - name: dim_times
+    description: "Dimension bảng thời gian từ các ngày giao dịch"
+    columns:
+      - name: date_id
+        description: "Ngày giao dịch, primary key"
+        tests:
+          - unique
+          - not_null
+
+  - name: fact_candles
+    description: "Fact bảng giá cổ phiếu hàng ngày (OHLC)"
+    columns:
+      - name: company_id
+        description: "Mã cổ phiếu, foreign key đến dim_companies"
+        tests:
+          - not_null
+      - name: date_id
+        description: "Ngày giao dịch, foreign key đến dim_times"
+        tests:
+          - not_null
+      - name: close
+        description: "Giá đóng cửa"
+        tests:
+          - not_null
+
+  - name: fact_news
+    description: "Fact bảng tin tức tài chính từ VnEconomy"
+    columns:
+      - name: news_id
+        description: "ID bài viết, primary key"
+        tests:
+          - unique
+          - not_null
