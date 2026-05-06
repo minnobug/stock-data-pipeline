@@ -122,8 +122,3 @@ Transformed and modeled data ready for analysis.
 | BR3: Trading volume analysis | `fact_candles` |
 | BR4: Sector & industry analysis | `fact_candles` + `dim_companies` |
 
-## Architecture
-
-![Pipeline Overview](docs/architecture_overview.png)
-
-![dbt Lineage](docs/architecture_lineage.png)
