@@ -1,0 +1,54 @@
+version: 2
+
+sources:
+  - name: raw
+    database: stock_raw
+    schema: public
+    description: "Raw layer — data loaded directly from vnstock and VnEconomy"
+
+    tables:
+      - name: raw_companies
+        description: "Danh sách công ty niêm yết trên HOSE và HNX"
+        columns:
+          - name: ticker
+            description: "Mã cổ phiếu"
+          - name: name
+            description: "Tên công ty"
+          - name: exchange
+            description: "Sàn giao dịch: HOSE hoặc HNX"
+          - name: industry
+            description: "Loại: stock, etf, ..."
+          - name: is_delisted
+            description: "Đã bị hủy niêm yết chưa"
+
+      - name: raw_candles
+        description: "Giá cổ phiếu hàng ngày (OHLC)"
+        columns:
+          - name: ticker
+            description: "Mã cổ phiếu"
+          - name: trade_date
+            description: "Ngày giao dịch"
+          - name: open
+            description: "Giá mở cửa"
+          - name: high
+            description: "Giá cao nhất"
+          - name: low
+            description: "Giá thấp nhất"
+          - name: close
+            description: "Giá đóng cửa"
+          - name: volume
+            description: "Khối lượng giao dịch"
+
+      - name: raw_news
+        description: "Tin tức tài chính từ VnEconomy"
+        columns:
+          - name: title
+            description: "Tiêu đề bài viết"
+          - name: url
+            description: "Link bài viết"
+          - name: source
+            description: "Nguồn tin"
+          - name: published_at
+            description: "Thời gian đăng"
+          - name: summary
+            description: "Tóm tắt nội dung"
