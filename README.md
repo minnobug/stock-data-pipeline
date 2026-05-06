@@ -6,15 +6,30 @@ An end-to-end ELT pipeline for the Vietnamese stock market (HOSE & HNX), built a
 
 Collects daily stock prices, company information, and news sentiment from Vietnamese financial sources, transforms and loads them into a Data Warehouse for analysis.
 
+## Architecture
+
+```
+vnstock (HOSE · HNX)  ─┐
+                        ├─→ Python extract ─→ PostgreSQL (raw) ─→ dbt ─→ warehouse schema
+VnEconomy RSS feed    ─┘
+                                                    ↑
+                                              Docker · .env
+                                         Kestra orchestration (planned)
+```
+
+→ See [`docs/data_model.md`](docs/data_model.md) for full schema documentation.
+
 ## Tech Stack
 
-- **Containerization:** Docker
-- **Data Source:** vnstock, VnEconomy
-- **Database:** PostgreSQL
-- **Data Warehouse:** DuckDB
-- **Orchestration:** Kestra
-- **Transformation:** dbt
-- **Language:** Python, SQL
+| Layer | Tool |
+|-------|------|
+| Containerization | Docker |
+| Data Sources | vnstock, VnEconomy RSS |
+| Raw Database | PostgreSQL |
+| Transformation | dbt |
+| Warehouse | PostgreSQL (`warehouse` schema) |
+| Orchestration | Kestra (planned) |
+| Language | Python, SQL |
 
 ## Business Requirements
 
@@ -71,9 +86,49 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### 7. View data in pgAdmin
+### 7. Run dbt transformations
+
+```bash
+cd stock_transform
+dbt run
+dbt test
+```
+
+### 8. View data in pgAdmin
 
 Open `http://localhost:8080` in your browser and login with your pgAdmin credentials from `.env`.
+
+### 9. View dbt documentation
+
+```bash
+cd stock_transform
+dbt docs generate
+dbt docs serve --port 8081
+```
+
+Open `http://localhost:8081` to explore the data lineage graph.
+
+## Project Structure
+
+```
+stock-data-pipeline/
+├── extract/              # Python extraction scripts
+│   ├── companies.py      # Company listing from HOSE & HNX
+│   ├── vnstock_ohlc.py   # Daily OHLC prices
+│   └── news_scraper.py   # News from VnEconomy RSS
+├── load/
+│   ├── schema.sql        # Raw layer table definitions
+│   └── postgres_loader.py # Load data into PostgreSQL
+├── stock_transform/      # dbt project
+│   └── models/
+│       ├── staging/      # Clean raw data
+│       └── marts/        # dim & fact tables
+├── docs/
+│   └── data_model.md     # Schema documentation
+├── main.py               # Pipeline entry point
+├── docker-compose.yml
+└── requirements.txt
+```
 
 ## Author
 
