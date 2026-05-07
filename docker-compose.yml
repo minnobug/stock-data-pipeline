@@ -23,6 +23,15 @@ services:
     depends_on:
       - postgres
     restart: unless-stopped
+    
+  metabase:
+    image: metabase/metabase:latest
+    container_name: stock_metabase
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
 
 volumes:
   postgres_data:
