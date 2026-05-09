@@ -1,0 +1,21 @@
+id: stock_daily_pipeline
+namespace: stock
+
+description: |
+  Daily ELT pipeline for Vietnam Stock Market
+  Schedule: every day at 8:00 AM (ICT)
+
+tasks:
+  - id: log_start
+    type: io.kestra.plugin.core.log.Log
+    message: "Starting Vietnam Stock Pipeline - {{ execution.startDate }}"
+
+  - id: log_end  
+    type: io.kestra.plugin.core.log.Log
+    message: "Pipeline scheduled successfully"
+
+triggers:
+  - id: daily_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 1 * * *"
+    description: "Run every day at 8:00 AM ICT (UTC+7 = 01:00 UTC)"
