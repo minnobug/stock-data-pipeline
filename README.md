@@ -19,6 +19,13 @@ VnEconomy RSS feed    ─┘
 
 → See [`docs/data_model.md`](docs/data_model.md) for full schema documentation.
 
+## Screenshots
+
+### Metabase Dashboard
+![Vietnam Stock Market Dashboard](docs/dashboard.png)
+
+> Displays close price comparison across 5 tickers (HPG, VCB, VHM, VIC, VNM), VNM monthly trading volume, and VNM average close price — 2024.
+
 ## Tech Stack
 
 | Layer | Tool |
@@ -124,7 +131,8 @@ stock-data-pipeline/
 │       ├── staging/      # Clean raw data
 │       └── marts/        # dim & fact tables
 ├── docs/
-│   └── data_model.md     # Schema documentation
+│   ├── data_model.md     # Schema documentation
+│   └── dashboard.png     # Metabase dashboard screenshot
 ├── main.py               # Pipeline entry point
 ├── docker-compose.yml
 └── requirements.txt
