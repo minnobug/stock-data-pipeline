@@ -23,7 +23,7 @@ services:
     depends_on:
       - postgres
     restart: unless-stopped
-    
+
   metabase:
     image: metabase/metabase:latest
     container_name: stock_metabase
@@ -33,5 +33,57 @@ services:
       - postgres
     restart: unless-stopped
 
+  kestra_db:
+    image: postgres:16
+    container_name: stock_kestra_db
+    environment:
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: kestra
+      POSTGRES_DB: kestra
+    volumes:
+      - kestra_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  kestra:
+    image: kestra/kestra:latest
+    container_name: stock_kestra
+    command: server standalone
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra_db:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: kestra
+        kestra:
+          server:
+            basic-auth:
+              enabled: false
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              base-path: /app/storage
+          queue:
+            type: postgres
+    ports:
+      - "8090:8080"
+    volumes:
+      - kestra_data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      kestra_db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  kestra_data:
+  kestra_db_data:
